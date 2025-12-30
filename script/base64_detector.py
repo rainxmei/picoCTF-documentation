@@ -1,6 +1,7 @@
 import base64
 import string
 import re
+import argparse
 
 def is_printable(s):
     return all(c in string.printable for c in s)
@@ -23,24 +24,69 @@ def find_base64_in_text(text, min_length=8):
     return found
 
 def main():
-    input_file = 'Windows_Logs.xml'
-    output_file = 'hasil_deteksi.txt'
+    parser = argparse.ArgumentParser(
+        description='Deteksi dan decode base64 string dari file teks',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Contoh penggunaan:
+  python script.py -i Windows_Logs.xml -o hasil.txt
+  python script.py -i data.txt -o output.txt -m 16
+  python script.py -i logs.xml -o hasil.txt -v
+        '''
+    )
+    
+    parser.add_argument('-i', '--input', 
+                        required=True,
+                        help='File input yang akan dianalisis')
+    
+    parser.add_argument('-o', '--output', 
+                        default='hasil_deteksi.txt',
+                        help='File output untuk menyimpan hasil (default: hasil_deteksi.txt)')
+    
+    parser.add_argument('-m', '--min-length', 
+                        type=int, 
+                        default=8,
+                        help='Panjang minimum string base64 (default: 8)')
+    
+    parser.add_argument('-v', '--verbose', 
+                        action='store_true',
+                        help='Tampilkan hasil di console juga')
+    
+    parser.add_argument('-e', '--encoding', 
+                        default='utf-8',
+                        help='Encoding file input (default: utf-8)')
 
-    with open(input_file, 'r', encoding='utf-8') as f:
-        text = f.read()
+    args = parser.parse_args()
 
-    results = find_base64_in_text(text)
+    try:
+        with open(args.input, 'r', encoding=args.encoding) as f:
+            text = f.read()
+        print(f"[INFO] File '{args.input}' berhasil dibaca")
+    except FileNotFoundError:
+        print(f"[ERROR] File '{args.input}' tidak ditemukan!")
+        return
+    except Exception as e:
+        print(f"[ERROR] Gagal membaca file: {e}")
+        return
+
+    results = find_base64_in_text(text, min_length=args.min_length)
 
     if results:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(f"{len(results)} base64 string ditemukan:\n\n")
-            for i, (encoded, decoded) in enumerate(results, 1):
-                f.write(f"#{i}\nEncoded: {encoded}\nDecoded: {decoded}\n\n")
-        print(f"{len(results)} base64 string valid disimpan di '{output_file}'")
+        try:
+            with open(args.output, 'w', encoding='utf-8') as f:
+                f.write(f"{len(results)} base64 string ditemukan:\n\n")
+                for i, (encoded, decoded) in enumerate(results, 1):
+                    output_text = f"#{i}\nEncoded: {encoded}\nDecoded: {decoded}\n\n"
+                    f.write(output_text)
+                    
+                    if args.verbose:
+                        print(output_text)
+            
+            print(f"[SUCCESS] {len(results)} base64 string valid disimpan di '{args.output}'")
+        except Exception as e:
+            print(f"[ERROR] Gagal menulis file output: {e}")
     else:
-        print("Tidak ditemukan base64 encoded string yang valid.")
+        print("[INFO] Tidak ditemukan base64 encoded string yang valid.")
 
 if __name__ == '__main__':
     main()
-
-    
